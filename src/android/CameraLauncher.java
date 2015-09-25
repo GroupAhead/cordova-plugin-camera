@@ -26,7 +26,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.URI;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -34,6 +33,7 @@ import org.apache.cordova.CallbackContext;
 import org.apache.cordova.CordovaPlugin;
 import org.apache.cordova.LOG;
 import org.apache.cordova.PluginResult;
+import org.apache.cordova.dialogs.Notification;
 import org.json.JSONArray;
 import org.json.JSONException;
 
@@ -50,13 +50,11 @@ import android.graphics.Matrix;
 import android.media.MediaScannerConnection;
 import android.media.MediaScannerConnection.MediaScannerConnectionClient;
 import android.net.Uri;
-import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
 import android.util.Base64;
 import android.util.Log;
 import android.content.pm.PackageManager;
-import android.widget.Toast;
 
 /**
  * This class launches the camera view, allows the user to take a picture, closes the camera view,
@@ -398,16 +396,18 @@ public class CameraLauncher extends CordovaPlugin implements MediaScannerConnect
             String imageUriString = cordova.getActivity().getPreferences(Context.MODE_PRIVATE)
                     .getString(PREFERENCES_IMAGE_URI, "");
             this.imageUri = Uri.parse(imageUriString);
+            this.mQuality = 80;
             this.saveToPhotoAlbum = true;
-            // Show a toast message
-            cordova.getActivity().runOnUiThread(new Runnable() {
-                public void run() {
-                    String message = "Your photo was saved to your gallery - please re-attach it " +
-                            "from there to a new message";
-                    Toast toast = Toast.makeText(cordova.getActivity(), message, Toast.LENGTH_LONG);
-                    toast.show();
-                }
-            });
+            // Craft a message to the user
+            final String message = "Due to memory restrictions, your photo was saved to your " +
+                    "gallery.\n\nYou may attach it to a new message.";
+            // Show a dialog
+            Notification notificationPlugin =
+                    (Notification) webView.getPluginManager().getPlugin("Notification");
+            if (notificationPlugin != null) {
+                notificationPlugin.alert(message, "Photo saved", "OK", new CallbackContext("null",
+                        webView));
+            }
         }
 
         // Create an ExifHelper to save the exif data that is lost during compression
@@ -657,7 +657,9 @@ private String ouputModifiedBitmap(Bitmap bitmap, Uri uri) throws IOException {
                         }
                     }
                     else {
-                        this.callbackContext.success(uri.toString());
+                        if (this.callbackContext != null) {
+                            this.callbackContext.success(uri.toString());
+                        }
                     }
                 }
                 if (bitmap != null) {
