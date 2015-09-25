@@ -17,6 +17,10 @@
 #         under the License.
 -->
 
+## Fork modifications
+
+There's a bug in Android that crashes the app upon restart if it is shut down by the system in the background (e.g. to relinquish memory.
+
 # cordova-plugin-camera
 
 This plugin defines a global `navigator.camera` object, which provides an API for taking pictures and for choosing images from

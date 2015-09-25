@@ -40,6 +40,7 @@ import org.json.JSONException;
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.ContentValues;
+import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.Bitmap;
@@ -55,6 +56,8 @@ import android.provider.MediaStore;
 import android.util.Base64;
 import android.util.Log;
 import android.content.pm.PackageManager;
+import android.widget.Toast;
+
 /**
  * This class launches the camera view, allows the user to take a picture, closes the camera view,
  * and returns the captured image.  When the camera view is closed, the screen displayed before
@@ -79,6 +82,8 @@ public class CameraLauncher extends CordovaPlugin implements MediaScannerConnect
     private static final String GET_PICTURE = "Get Picture";
     private static final String GET_VIDEO = "Get Video";
     private static final String GET_All = "Get All";
+
+    private static final String PREFERENCES_IMAGE_URI = "camera-image-uri";
     
     private static final String LOG_TAG = "CameraLauncher";
 
@@ -216,6 +221,11 @@ public class CameraLauncher extends CordovaPlugin implements MediaScannerConnect
         File photo = createCaptureFile(encodingType);
         intent.putExtra(android.provider.MediaStore.EXTRA_OUTPUT, Uri.fromFile(photo));
         this.imageUri = Uri.fromFile(photo);
+
+        // Save the imageUri that we are writing to in a Shared Pref so that we can retrieve it
+        // even if the app is shut down in the background
+        cordova.getActivity().getPreferences(Context.MODE_PRIVATE).edit().putString(
+                PREFERENCES_IMAGE_URI, this.imageUri.toString()).commit();
 
         if (this.cordova != null) {
             // Let's check to make sure the camera is actually installed. (Legacy Nexus 7 code)
@@ -380,6 +390,26 @@ public class CameraLauncher extends CordovaPlugin implements MediaScannerConnect
     private void processResultFromCamera(int destType, Intent intent) throws IOException {
         int rotate = 0;
 
+        // It's possible that the activity was restarted in the background and imageUri is null,
+        // so we'll restore from the Preferences object if this is the case.
+        // 2015/9/24 jfrumar - It's too complex to restore state in the WebView after a restart
+        // so we'll save the image to the device's gallery, and generate a toast message
+        if (this.imageUri == null) {
+            String imageUriString = cordova.getActivity().getPreferences(Context.MODE_PRIVATE)
+                    .getString(PREFERENCES_IMAGE_URI, "");
+            this.imageUri = Uri.parse(imageUriString);
+            this.saveToPhotoAlbum = true;
+            // Show a toast message
+            cordova.getActivity().runOnUiThread(new Runnable() {
+                public void run() {
+                    String message = "Your photo was saved to your gallery - please re-attach it " +
+                            "from there to a new message";
+                    Toast toast = Toast.makeText(cordova.getActivity(), message, Toast.LENGTH_LONG);
+                    toast.show();
+                }
+            });
+        }
+
         // Create an ExifHelper to save the exif data that is lost during compression
         ExifHelper exif = new ExifHelper();
         String sourcePath = (this.allowEdit && this.croppedUri != null) ?
@@ -478,7 +508,9 @@ public class CameraLauncher extends CordovaPlugin implements MediaScannerConnect
 
 
                 // Send Uri back to JavaScript for viewing image
-                this.callbackContext.success(uri.toString());
+                if (this.callbackContext != null) {
+                    this.callbackContext.success(uri.toString());
+                }
 
             }
         } else {
