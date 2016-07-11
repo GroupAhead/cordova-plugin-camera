@@ -18,30 +18,12 @@
 */
 package org.apache.cordova.camera;
 
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-
-import org.apache.cordova.CallbackContext;
-import org.apache.cordova.CordovaPlugin;
-import org.apache.cordova.LOG;
-import org.apache.cordova.PluginResult;
-import org.apache.cordova.dialogs.Notification;
-import org.json.JSONArray;
-import org.json.JSONException;
-
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.Bitmap.CompressFormat;
@@ -54,7 +36,25 @@ import android.os.Environment;
 import android.provider.MediaStore;
 import android.util.Base64;
 import android.util.Log;
-import android.content.pm.PackageManager;
+
+import org.apache.cordova.CallbackContext;
+import org.apache.cordova.CordovaPlugin;
+import org.apache.cordova.LOG;
+import org.apache.cordova.PluginResult;
+import org.apache.cordova.dialogs.Notification;
+import org.json.JSONArray;
+import org.json.JSONException;
+
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 /**
  * This class launches the camera view, allows the user to take a picture, closes the camera view,
@@ -623,7 +623,8 @@ private String ouputModifiedBitmap(Bitmap bitmap, Uri uri) throws IOException {
                 }
 
                 if (this.correctOrientation) {
-                    rotate = getImageOrientation(uri);
+                    GalleryImageHelper galleryImageHelper = new GalleryImageHelper();
+                    rotate = galleryImageHelper.getImageOrientation(cordova.getActivity(), uri);
                     if (rotate != 0) {
                         Matrix matrix = new Matrix();
                         matrix.setRotate(rotate);
@@ -750,23 +751,6 @@ private String ouputModifiedBitmap(Bitmap bitmap, Uri uri) throws IOException {
                 this.failPicture("Selection did not complete!");
             }
         }
-    }
-
-    private int getImageOrientation(Uri uri) {
-        int rotate = 0;
-        String[] cols = { MediaStore.Images.Media.ORIENTATION };
-        try {
-            Cursor cursor = cordova.getActivity().getContentResolver().query(uri,
-                    cols, null, null, null);
-            if (cursor != null) {
-                cursor.moveToPosition(0);
-                rotate = cursor.getInt(0);
-                cursor.close();
-            }
-        } catch (Exception e) {
-            // You can get an IllegalArgumentException if ContentProvider doesn't support querying for orientation.
-        }
-        return rotate;
     }
 
     /**
