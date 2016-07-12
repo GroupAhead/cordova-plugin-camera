@@ -55,7 +55,7 @@ public class GalleryImageHelper {
 
                     default:
                     case ExifInterface.ORIENTATION_NORMAL: {
-                        return cursorBasedRotate;
+                        return 0;
                     }
                 }
             }
