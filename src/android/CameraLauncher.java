@@ -36,10 +36,12 @@ import android.os.Environment;
 import android.provider.MediaStore;
 import android.util.Base64;
 import android.util.Log;
+import android.widget.Toast;
 
 import org.apache.cordova.CallbackContext;
 import org.apache.cordova.CordovaPlugin;
 import org.apache.cordova.LOG;
+import org.apache.cordova.PermissionHelper;
 import org.apache.cordova.PluginResult;
 import org.apache.cordova.dialogs.Notification;
 import org.json.JSONArray;
@@ -87,6 +89,8 @@ public class CameraLauncher extends CordovaPlugin implements MediaScannerConnect
 
     //Where did this come from?
     private static final int CROP_CAMERA = 100;
+    private static final int REQUEST_CAMERA_PERMISSION = 1001;
+    private static final int REQUEST_STORAGE_PERMISSION = 1002;
 
     private int mQuality;                   // Compression quality hint (0-100: 0=low quality & high compression, 100=compress of max quality)
     private int targetWidth;                // desired width of the image
@@ -98,6 +102,7 @@ public class CameraLauncher extends CordovaPlugin implements MediaScannerConnect
     private boolean correctOrientation;     // Should the pictures orientation be corrected
     private boolean orientationCorrected;   // Has the picture's orientation been corrected
     private boolean allowEdit;              // Should we allow the user to crop the image.
+    private int destType;
 
     public CallbackContext callbackContext;
     private int numPics;
@@ -149,7 +154,8 @@ public class CameraLauncher extends CordovaPlugin implements MediaScannerConnect
 
              try {
                 if (srcType == CAMERA) {
-                    this.takePicture(destType, encodingType);
+                    this.destType = destType;
+                    handleCamera();
                 }
                 else if ((srcType == PHOTOLIBRARY) || (srcType == SAVEDPHOTOALBUM)) {
                     this.getImage(srcType, destType, encodingType);
@@ -170,6 +176,18 @@ public class CameraLauncher extends CordovaPlugin implements MediaScannerConnect
             return true;
         }
         return false;
+    }
+
+    private void handleCamera() {
+        if (PermissionHelper.hasPermission(this, "android.permission.CAMERA") && PermissionHelper.hasPermission(this, "android.permission.WRITE_EXTERNAL_STORAGE")) {
+            takePicture(destType, encodingType);
+        } else {
+            if (!PermissionHelper.hasPermission(this, "android.permission.CAMERA")) {
+                PermissionHelper.requestPermission(this, REQUEST_CAMERA_PERMISSION, "android.permission.CAMERA");
+            } else if (!PermissionHelper.hasPermission(this, "android.permission.WRITE_EXTERNAL_STORAGE")) {
+                PermissionHelper.requestPermission(this, REQUEST_STORAGE_PERMISSION, "android.permission.WRITE_EXTERNAL_STORAGE");
+            }
+        }
     }
 
     //--------------------------------------------------------------------------
@@ -205,8 +223,8 @@ public class CameraLauncher extends CordovaPlugin implements MediaScannerConnect
      * or to display URI in an img tag
      *      img.src=result;
      *
-     * @param quality           Compression quality hint (0-100: 0=low quality & high compression, 100=compress of max quality)
-     * @param returnType        Set the type of image to return.
+     * @param returnType           Compression quality hint (0-100: 0=low quality & high compression, 100=compress of max quality)
+     * @param encodingType        Set the type of image to return.
      */
     public void takePicture(int returnType, int encodingType) {
         // Save the number of images currently on disk for later
@@ -240,6 +258,35 @@ public class CameraLauncher extends CordovaPlugin implements MediaScannerConnect
         }
 //        else
 //            LOG.d(LOG_TAG, "ERROR: You must use the CordovaInterface for this to work correctly. Please implement it in your activity");
+    }
+
+    @Override
+    public void onRequestPermissionResult(int requestCode, String[] permissions, int[] grantResults) throws JSONException {
+        super.onRequestPermissionResult(requestCode, permissions, grantResults);
+
+        switch (requestCode) {
+            case REQUEST_CAMERA_PERMISSION: {
+                if (grantResults.length > 0 && grantResults[0] != PackageManager.PERMISSION_GRANTED) {
+                    Toast.makeText(cordova.getActivity(), "Camera permission was not granted. Please provide necessary permissions to continue.", Toast.LENGTH_LONG).show();
+                    return;
+                }
+                handleCamera();
+                break;
+            }
+
+            case REQUEST_STORAGE_PERMISSION: {
+                if (grantResults.length > 0 && grantResults[0] != PackageManager.PERMISSION_GRANTED) {
+                    Toast.makeText(cordova.getActivity(), "Storage permission was not granted. Please provide necessary permissions to continue.", Toast.LENGTH_LONG).show();
+                    return;
+                }
+                handleCamera();
+                break;
+            }
+
+            default: {
+                break;
+            }
+        }
     }
 
     /**
@@ -280,7 +327,6 @@ public class CameraLauncher extends CordovaPlugin implements MediaScannerConnect
     /**
      * Get image from photo library.
      *
-     * @param quality           Compression quality hint (0-100: 0=low quality & high compression, 100=compress of max quality)
      * @param srcType           The album to get image from.
      * @param returnType        Set the type of image to return.
      * @param encodingType 
