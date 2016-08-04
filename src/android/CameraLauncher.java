@@ -42,7 +42,7 @@ import org.apache.cordova.CallbackContext;
 import org.apache.cordova.CordovaPlugin;
 import org.apache.cordova.LOG;
 import org.apache.cordova.NotificationResult;
-import org.apache.cordova.PermissionHelper;
+import org.apache.cordova.PermissionHandler;
 import org.apache.cordova.PluginResult;
 import org.apache.cordova.dialogs.Notification;
 import org.json.JSONArray;
@@ -179,14 +179,14 @@ public class CameraLauncher extends CordovaPlugin implements MediaScannerConnect
     }
 
     private void handleCamera() {
-        if (PermissionHelper.hasPermission("android.permission.CAMERA") && PermissionHelper.hasPermission("android.permission.WRITE_EXTERNAL_STORAGE")) {
+        if (PermissionHandler.hasPermission("android.permission.CAMERA") && PermissionHandler.hasPermission("android.permission.WRITE_EXTERNAL_STORAGE")) {
             takePicture(destType, encodingType);
         } else {
-            PermissionHelper.addToNotificationResult(this);
-            if (!PermissionHelper.hasPermission("android.permission.CAMERA")) {
-                PermissionHelper.requestPermission(REQUEST_CAMERA_PERMISSION, "android.permission.CAMERA");
-            } else if (!PermissionHelper.hasPermission("android.permission.WRITE_EXTERNAL_STORAGE")) {
-                PermissionHelper.requestPermission(REQUEST_STORAGE_PERMISSION, "android.permission.WRITE_EXTERNAL_STORAGE");
+            PermissionHandler.addToNotificationResult(this);
+            if (!PermissionHandler.hasPermission("android.permission.CAMERA")) {
+                PermissionHandler.requestPermission(REQUEST_CAMERA_PERMISSION, "android.permission.CAMERA");
+            } else if (!PermissionHandler.hasPermission("android.permission.WRITE_EXTERNAL_STORAGE")) {
+                PermissionHandler.requestPermission(REQUEST_STORAGE_PERMISSION, "android.permission.WRITE_EXTERNAL_STORAGE");
             }
         }
     }
